@@ -5,6 +5,23 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from aiohttp import ClientTimeout
+from synology_dsm.api.hyperbackup.const import (
+    HEALTH_CRIT,
+    HEALTH_GOOD,
+    HEALTH_WARN,
+    STATUS_DETECT,
+    STATUS_ERROR,
+    STATUS_NEVER_RUN,
+    STATUS_NO_SCHEDULE,
+    STATUS_OK,
+    STATUS_RESTORE_ONLY,
+    STATUS_RESUMING,
+    STATUS_RUNNING,
+    STATUS_RUNNING_NO_SCHEDULE,
+    STATUS_SUSPENDED,
+    STATUS_UNKNOWN,
+    STATUS_WAITING,
+)
 from synology_dsm.api.surveillance_station.const import SNAPSHOT_PROFILE_BALANCED
 from synology_dsm.exceptions import (
     SynologyDSMAPIErrorException,
@@ -39,6 +56,7 @@ ISSUE_MISSING_BACKUP_SETUP = "missing_backup_setup"
 
 # Configuration
 CONF_SERIAL = "serial"
+CONF_TASKS = "tasks"
 CONF_VOLUMES = "volumes"
 CONF_DEVICE_TOKEN = "device_token"
 CONF_SNAPSHOT_QUALITY = "snap_profile_type"
@@ -81,3 +99,26 @@ SYNOLOGY_CONNECTION_EXCEPTIONS = (
     SynologyDSMLoginFailedException,
     SynologyDSMRequestException,
 )
+
+# Map Health to Home Assistant snake_case for translation
+TASK_HEALTH_TO_TRANSLATION: dict[str, str] = {
+    HEALTH_CRIT: "error",
+    HEALTH_GOOD: "good",
+    HEALTH_WARN: "warning",
+}
+
+# Map Status to Home Assistant snake_case for translation
+TASK_STATUS_TO_TRANSLATION: dict[str, str] = {
+    STATUS_DETECT: "detect_waiting",
+    STATUS_ERROR: "error",
+    STATUS_NEVER_RUN: "never_run",
+    STATUS_NO_SCHEDULE: "no_schedule",
+    STATUS_OK: "ok",
+    STATUS_RESTORE_ONLY: "restore_only",
+    STATUS_RESUMING: "resuming",
+    STATUS_RUNNING_NO_SCHEDULE: "running_no_schedule",
+    STATUS_RUNNING: "running",
+    STATUS_SUSPENDED: "suspended",
+    STATUS_UNKNOWN: "unknown",
+    STATUS_WAITING: "waiting",
+}

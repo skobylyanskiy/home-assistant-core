@@ -1,5 +1,19 @@
 {
   "entity": {
+    "binary_sensor": {
+      "task_has_schedule": {
+        "default": "mdi:calendar-clock",
+        "state": {
+          "off": "mdi:calendar-alert"
+        }
+      },
+      "task_is_backing_up": {
+        "default": "mdi:backup-restore"
+      },
+      "task_target_online": {
+        "default": "mdi:target-variant"
+      }
+    },
     "sensor": {
       "cpu_other_load": {
         "default": "mdi:chip"
@@ -48,6 +62,40 @@
       },
       "network_down": {
         "default": "mdi:download"
+      },
+      "task_backup_progress": {
+        "default": "mdi:progress-upload"
+      },
+      "task_health": {
+        "default": "mdi:hospital-box-outline",
+        "state": {
+          "error": "mdi:alert-decagram",
+          "warning": "mdi:alert-box-outline"
+        }
+      },
+      "task_next_backup_time": {
+        "default": "mdi:forwardburger"
+      },
+      "task_previous_backup_end_time": {
+        "default": "mdi:clock-end"
+      },
+      "task_previous_backup_time": {
+        "default": "mdi:clock-start"
+      },
+      "task_previous_error": {
+        "default": "mdi:alert-circle-outline"
+      },
+      "task_previous_result": {
+        "default": "mdi:history"
+      },
+      "task_previous_success_time": {
+        "default": "mdi:clock-check-outline"
+      },
+      "task_status": {
+        "default": "mdi:checkbox-marked-circle-outline"
+      },
+      "task_used_size": {
+        "default": "mdi:chart-pie"
       },
       "volume_status": {
         "default": "mdi:checkbox-marked-circle-outline",

@@ -89,6 +89,15 @@
       },
       "status": {
         "name": "Security status"
+      },
+      "task_has_schedule": {
+        "name": "Has schedule"
+      },
+      "task_is_backing_up": {
+        "name": "Backing up"
+      },
+      "task_target_online": {
+        "name": "Target online"
       }
     },
     "sensor": {
@@ -148,6 +157,61 @@
       },
       "network_up": {
         "name": "Upload throughput"
+      },
+      "task_backup_progress": {
+        "name": "Backup Progress"
+      },
+      "task_health": {
+        "name": "Health",
+        "state": {
+          "error": "Error",
+          "good": "Good",
+          "warning": "Warning"
+        }
+      },
+      "task_next_backup_time": {
+        "name": "Next Scheduled"
+      },
+      "task_previous_backup_end_time": {
+        "name": "Last End Time"
+      },
+      "task_previous_backup_time": {
+        "name": "Last Start Time"
+      },
+      "task_previous_error": {
+        "name": "Recent Error"
+      },
+      "task_previous_result": {
+        "name": "Recent Result"
+      },
+      "task_previous_success_time": {
+        "name": "Last Success"
+      },
+      "task_raw_status": {
+        "name": "Status (raw)"
+      },
+      "task_state": {
+        "name": "Task State (raw)"
+      },
+      "task_status": {
+        "name": "Status",
+        "state": {
+          "detect_waiting": "Waiting: target offline",
+          "error": "Error",
+          "never_run": "Never backed up",
+          "no_schedule": "No schedule set",
+          "ok": "Ok",
+          "restore_only": "Restore Only",
+          "resuming": "Resuming",
+          "running": "Backing up",
+          "running_no_schedule": "Backing up (no schedule)",
+          "suspended": "Suspended",
+          "unknown": "Unhandled/Unknown",
+          "waiting": "Waiting to backup"
+        }
+      },
+      "task_used_size": {
+        "name": "Target Current Size"
       },
       "temperature": {
         "name": "[%key:component::sensor::entity_component::temperature::name%]"

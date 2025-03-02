@@ -132,3 +132,50 @@ class SynologyDSMDeviceEntity(
             via_device=(DOMAIN, information.serial),
             configuration_url=self._api.config_url,
         )
+
+
+class SynologyDSMBackupTaskEntity(SynologyDSMBaseEntity):
+    """Representation of a Synology HyperBackup task entry."""
+
+    def __init__(
+        self,
+        api: SynoApi,
+        coordinator: SynologyDSMCentralUpdateCoordinator,
+        description: SynologyDSMEntityDescription,
+        device_id: int | None = None,
+    ) -> None:
+        """Initialize the Synology DSM disk or volume entity."""
+        super().__init__(api, coordinator, description)
+        self._device_id = device_id
+        self._device_name: str | None = None
+        self._device_manufacturer: str | None = None
+        self._device_model: str | None = None
+        self._device_type = None
+
+        information = api.information
+        network = api.network
+        assert information is not None
+        assert network is not None
+
+        hyperbackup = self._api.hyperbackup
+        assert hyperbackup is not None
+        assert self._device_id is not None
+        task = hyperbackup.get_task(self._device_id)
+        assert task is not None
+        self._device_manufacturer = "Synology"
+        self._device_name = task.name
+        model = task.transfer_type
+        if task.transfer_type.startswith(
+            "image_"
+        ):  # rename "image_local" to "Local Image", etc
+            model = task.transfer_type[6:] + " image"
+        self._device_model = model.replace("_", " ").title() + " Backup Task"
+        self._attr_unique_id += f"_{self._device_id}"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"{information.serial}_hyper_{self._device_id}")},
+            name=f"{network.hostname} ({self._device_name})",
+            manufacturer=self._device_manufacturer,
+            model=self._device_model,
+            via_device=(DOMAIN, information.serial),
+            configuration_url=self._api.config_url,
+        )

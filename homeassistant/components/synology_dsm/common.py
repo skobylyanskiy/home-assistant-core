@@ -15,6 +15,7 @@ from synology_dsm.api.core.utilization import SynoCoreUtilization
 from synology_dsm.api.dsm.information import SynoDSMInformation
 from synology_dsm.api.dsm.network import SynoDSMNetwork
 from synology_dsm.api.file_station import SynoFileStation
+from synology_dsm.api.hyperbackup import SynoHyperBackup
 from synology_dsm.api.photos import SynoPhotos
 from synology_dsm.api.storage.storage import SynoStorage
 from synology_dsm.api.surveillance_station import SynoSurveillanceStation
@@ -68,6 +69,7 @@ class SynoApi:
 
         # DSM APIs
         self.file_station: SynoFileStation | None = None
+        self.hyperbackup: SynoHyperBackup | None = None
         self.information: SynoDSMInformation | None = None
         self.network: SynoDSMNetwork | None = None
         self.photos: SynoPhotos | None = None
@@ -81,6 +83,7 @@ class SynoApi:
         # Should we fetch them
         self._fetching_entities: dict[str, set[str]] = {}
         self._with_file_station = True
+        self._with_hyperbackup = True
         self._with_information = True
         self._with_photos = True
         self._with_security = True
@@ -197,6 +200,24 @@ class SynoApi:
             self._with_file_station,
         )
 
+        # check if HyperBackup is used
+        self._with_hyperbackup = bool(self.dsm.apis.get(SynoHyperBackup.API_KEY))
+        if self._with_hyperbackup:
+            try:
+                await self.dsm.hyperbackup.update()
+            except SYNOLOGY_CONNECTION_EXCEPTIONS:
+                self._with_hyperbackup = False
+                self.dsm.reset(SynoHyperBackup.API_KEY)
+                LOGGER.warning(
+                    "HyperBackup found, but disabled due to missing user permissions"
+                )
+
+        LOGGER.debug(
+            "State of HyperBackup during setup of '%s': %s",
+            self._entry.unique_id,
+            self._with_hyperbackup,
+        )
+
         await self._fetch_device_configuration()
 
         try:
@@ -253,6 +274,9 @@ class SynoApi:
         )
         self._with_information = bool(
             self._fetching_entities.get(SynoDSMInformation.API_KEY)
+        )
+        self._with_hyperbackup = bool(
+            self._fetching_entities.get(SynoHyperBackup.API_KEY)
         )
 
         # Reset not used API, information is not reset since it's used in device_info
@@ -315,6 +339,15 @@ class SynoApi:
                 self.dsm.reset(self.utilisation)
             self.utilisation = None
 
+        if not self._with_hyperbackup:
+            LOGGER.debug(
+                "Disable HyperBackup api from being updated for '%s'",
+                self._entry.unique_id,
+            )
+            if self.hyperbackup:
+                self.dsm.reset(self.hyperbackup)
+            self.hyperbackup = None
+
     async def _fetch_device_configuration(self) -> None:
         """Fetch initial device config."""
         self.information = self.dsm.information
@@ -359,6 +392,12 @@ class SynoApi:
                 self._entry.unique_id,
             )
             self.surveillance_station = self.dsm.surveillance_station
+
+        if self._with_hyperbackup:
+            LOGGER.debug(
+                "Enable HyperBackup api updates for '%s'", self._entry.unique_id
+            )
+            self.hyperbackup = self.dsm.hyperbackup
 
     async def _syno_api_executer(self, api_call: Callable) -> None:
         """Synology api call wrapper."""

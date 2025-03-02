@@ -33,6 +33,7 @@ async def async_get_config_entry_diagnostics(
             "uptime": dsm_info.uptime,
             "temperature": dsm_info.temperature,
         },
+        "hyperbackup": {"tasks": {}},
         "network": {"interfaces": {}},
         "storage": {"disks": {}, "volumes": {}},
         "surveillance_station": {"cameras": {}, "camera_diagnostics": {}},
@@ -43,6 +44,28 @@ async def async_get_config_entry_diagnostics(
             "fetching_entities": syno_api._fetching_entities,  # noqa: SLF001
         },
     }
+
+    if syno_api.hyperbackup is not None:
+        for task in syno_api.hyperbackup.get_all_tasks():
+            diag_data["hyperbackup"]["tasks"][str(task.task_id)] = {
+                "name": task.name,
+                "target_online": task.target_online,
+                "status": task.status,
+                "health": task.health,
+                "is_backing_up": task.is_backing_up,
+                "backup_progress": task.backup_progress,
+                "state": task.state,
+                "raw_status": task.raw_status,
+                "used_size": task.used_size(),
+                "previous_result": task.previous_result,
+                "has_schedule": task.has_schedule,
+                "next_backup_time": task.next_backup_time,
+                "transfer_type": task.transfer_type,
+                "previous_backup_end_time": task.previous_backup_end_time,
+                "previous_backup_time": task.previous_backup_time,
+                "previous_error": task.previous_error,
+                "previous_success_time": task.previous_success_time,
+            }
 
     if syno_api.network is not None:
         for intf in syno_api.network.interfaces:
