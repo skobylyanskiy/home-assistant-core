@@ -150,7 +150,7 @@ def mock_controller_service_with_filestation():
                 ]
             )
         )
-
+        dsm.hyperbackup = AsyncMock(return_value=True)
         yield dsm
 
 

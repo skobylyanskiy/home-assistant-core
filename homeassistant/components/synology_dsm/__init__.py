@@ -171,9 +171,6 @@ async def async_remove_config_entry_device(
     serial = api.information.serial
     storage = api.storage
     assert storage is not None
-    hyperbackup_tasks_ids: list[int] = []
-    if api.hyperbackup is not None:
-        hyperbackup_tasks_ids = api.hyperbackup.task_ids
     all_cameras: list[SynoCamera] = []
     if api.surveillance_station is not None:
         # get_all_cameras does not do I/O
@@ -183,7 +180,6 @@ async def async_remove_config_entry_device(
         storage.volumes_ids,
         storage.disks_ids,
         storage.volumes_ids,
-        hyperbackup_tasks_ids,
         (SynoSurveillanceStation.INFO_API_KEY,),  # Camera home/away
     )
     return not device_entry.identifiers.intersection(

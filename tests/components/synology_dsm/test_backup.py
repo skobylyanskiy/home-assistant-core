@@ -131,6 +131,7 @@ def mock_dsm_with_filestation():
             upload_file=AsyncMock(return_value=True),
             delete_file=AsyncMock(return_value=True),
         )
+        dsm.hyperbackup = AsyncMock(return_value=True)
         dsm.logout = AsyncMock(return_value=True)
         yield dsm
 
