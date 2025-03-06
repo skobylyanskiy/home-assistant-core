@@ -38,4 +38,5 @@ def fixture_dsm():
         dsm.surveillance_station.update = AsyncMock(return_value=True)
         dsm.upgrade.update = AsyncMock(return_value=True)
         dsm.file = AsyncMock(get_shared_folders=AsyncMock(return_value=None))
+        dsm.hyperbackup = AsyncMock(return_value=True)
     return dsm

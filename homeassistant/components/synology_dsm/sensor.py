@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone, tzinfo
 from typing import cast
 
 from synology_dsm.api.core.utilization import SynoCoreUtilization
 from synology_dsm.api.dsm.information import SynoDSMInformation
+from synology_dsm.api.hyperbackup import SynoHyperBackup
 from synology_dsm.api.storage.storage import SynoStorage
 
 from homeassistant.components.sensor import (
@@ -28,12 +30,20 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.typing import StateType
-from homeassistant.util.dt import utcnow
+from homeassistant.util import dt as dt_util
 
 from . import SynoApi
-from .const import CONF_VOLUMES, DOMAIN, ENTITY_UNIT_LOAD
+from .const import (
+    CONF_TASKS,
+    CONF_VOLUMES,
+    DOMAIN,
+    ENTITY_UNIT_LOAD,
+    TASK_HEALTH_TO_TRANSLATION,
+    TASK_STATUS_TO_TRANSLATION,
+)
 from .coordinator import SynologyDSMCentralUpdateCoordinator
 from .entity import (
+    SynologyDSMBackupTaskEntity,
     SynologyDSMBaseEntity,
     SynologyDSMDeviceEntity,
     SynologyDSMEntityDescription,
@@ -46,6 +56,8 @@ class SynologyDSMSensorEntityDescription(
     SensorEntityDescription, SynologyDSMEntityDescription
 ):
     """Describes Synology DSM sensor entity."""
+
+    native_value: Callable[[str], StateType] | None = None
 
 
 UTILISATION_SENSORS: tuple[SynologyDSMSensorEntityDescription, ...] = (
@@ -284,6 +296,90 @@ INFORMATION_SENSORS: tuple[SynologyDSMSensorEntityDescription, ...] = (
     ),
 )
 
+HYPER_BACKUP_SENSORS: tuple[SynologyDSMSensorEntityDescription, ...] = (
+    SynologyDSMSensorEntityDescription(
+        api_key=SynoHyperBackup.API_KEY,
+        key="health",
+        translation_key="task_health",
+        # options=list(TASK_HEALTH_TO_TRANSLATION.values()),
+        options=["error", "good", "warning"],
+        device_class=SensorDeviceClass.ENUM,
+        native_value=lambda value: TASK_HEALTH_TO_TRANSLATION.get(value, value),
+    ),
+    SynologyDSMSensorEntityDescription(
+        api_key=SynoHyperBackup.API_KEY,
+        key="next_backup_time",
+        translation_key="task_next_backup_time",
+        device_class=SensorDeviceClass.TIMESTAMP,
+    ),
+    SynologyDSMSensorEntityDescription(
+        api_key=SynoHyperBackup.API_KEY,
+        key="previous_backup_end_time",
+        translation_key="task_previous_backup_end_time",
+        device_class=SensorDeviceClass.TIMESTAMP,
+    ),
+    SynologyDSMSensorEntityDescription(
+        api_key=SynoHyperBackup.API_KEY,
+        key="previous_backup_time",
+        translation_key="task_previous_backup_time",
+        device_class=SensorDeviceClass.TIMESTAMP,
+    ),
+    SynologyDSMSensorEntityDescription(
+        api_key=SynoHyperBackup.API_KEY,
+        key="previous_error",
+        translation_key="task_previous_error",
+    ),
+    SynologyDSMSensorEntityDescription(
+        api_key=SynoHyperBackup.API_KEY,
+        key="previous_result",
+        translation_key="task_previous_result",
+    ),
+    SynologyDSMSensorEntityDescription(
+        api_key=SynoHyperBackup.API_KEY,
+        key="previous_success_time",
+        translation_key="task_previous_success_time",
+        device_class=SensorDeviceClass.TIMESTAMP,
+    ),
+    SynologyDSMSensorEntityDescription(
+        api_key=SynoHyperBackup.API_KEY,
+        key="status",
+        translation_key="task_status",
+        device_class=SensorDeviceClass.ENUM,
+        options=list(TASK_STATUS_TO_TRANSLATION.values()),
+        native_value=lambda value: TASK_STATUS_TO_TRANSLATION.get(value, value),
+    ),
+    SynologyDSMSensorEntityDescription(
+        api_key=SynoHyperBackup.API_KEY,
+        key="used_size",
+        translation_key="task_used_size",
+        native_unit_of_measurement=UnitOfInformation.BYTES,
+        suggested_unit_of_measurement=UnitOfInformation.GIGABYTES,
+        suggested_display_precision=2,
+        device_class=SensorDeviceClass.DATA_SIZE,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    SynologyDSMSensorEntityDescription(
+        api_key=SynoHyperBackup.API_KEY,
+        key="backup_progress",
+        translation_key="task_backup_progress",
+        native_unit_of_measurement=PERCENTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_registry_enabled_default=False,
+    ),
+    SynologyDSMSensorEntityDescription(
+        api_key=SynoHyperBackup.API_KEY,
+        key="raw_status",
+        translation_key="task_raw_status",
+        entity_registry_enabled_default=False,
+    ),
+    SynologyDSMSensorEntityDescription(
+        api_key=SynoHyperBackup.API_KEY,
+        key="state",
+        translation_key="task_state",
+        entity_registry_enabled_default=False,
+    ),
+)
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -297,7 +393,12 @@ async def async_setup_entry(
     storage = api.storage
     assert storage is not None
 
-    entities: list[SynoDSMUtilSensor | SynoDSMStorageSensor | SynoDSMInfoSensor] = [
+    entities: list[
+        SynoDSMUtilSensor
+        | SynoDSMStorageSensor
+        | SynoDSMInfoSensor
+        | SynoDSMHyperBackupSensor
+    ] = [
         SynoDSMUtilSensor(api, coordinator, description)
         for description in UTILISATION_SENSORS
     ]
@@ -319,6 +420,16 @@ async def async_setup_entry(
                 SynoDSMStorageSensor(api, coordinator, description, disk)
                 for disk in entry.data.get(CONF_DISKS, storage.disks_ids)
                 for description in STORAGE_DISK_SENSORS
+            ]
+        )
+
+    # Handle all hyperBackup tasks
+    if api.hyperbackup is not None and api.hyperbackup.task_ids:
+        entities.extend(
+            [
+                SynoDSMHyperBackupSensor(api, coordinator, description, task)
+                for task in entry.data.get(CONF_TASKS, api.hyperbackup.task_ids)
+                for description in HYPER_BACKUP_SENSORS
             ]
         )
 
@@ -398,6 +509,57 @@ class SynoDSMStorageSensor(SynologyDSMDeviceEntity, SynoDSMSensor):
         )
 
 
+class SynoDSMHyperBackupSensor(SynologyDSMBackupTaskEntity, SynoDSMSensor):
+    """Representation a Synology HyperBackup sensor."""
+
+    entity_description: SynologyDSMSensorEntityDescription
+
+    def __init__(
+        self,
+        api: SynoApi,
+        coordinator: SynologyDSMCentralUpdateCoordinator,
+        description: SynologyDSMSensorEntityDescription,
+        device_id: int | None = None,
+    ) -> None:
+        """Initialize the Synology DSM HyperBackup sensor entity."""
+        super().__init__(api, coordinator, description, device_id)
+
+    @property
+    def native_value(self) -> StateType | datetime:
+        """Return the state."""
+        assert self._api.hyperbackup is not None
+        assert self._device_id is not None
+        attr = getattr(
+            self._api.hyperbackup.get_task(self._device_id), self.entity_description.key
+        )
+        if attr is None:
+            return None
+        if callable(attr):
+            attr = attr()
+
+        if self.entity_description.native_value:
+            return self.entity_description.native_value(attr)
+
+        if self.device_class == SensorDeviceClass.TIMESTAMP:
+            if isinstance(attr, datetime) and attr.tzinfo is None:
+                return attr.replace(tzinfo=self._get_timezone())
+
+        return cast(StateType, attr)
+
+    def _get_timezone(self) -> tzinfo:
+        # time_zone_desc is a string like "(GMT-07:00) Arizona"
+        if (
+            self._api.system
+            and (tz_desc := self._api.system.time_zone_desc) is not None
+        ):
+            # tz_str: -07:00
+            tz_str = tz_desc[4:][:6]
+            hours, minutes = map(int, tz_str.split(":"))
+            offset_delta = timedelta(hours=hours, minutes=minutes)
+            return timezone(offset_delta)
+        return dt_util.get_default_time_zone()
+
+
 class SynoDSMInfoSensor(SynoDSMSensor):
     """Representation a Synology information sensor."""
 
@@ -422,7 +584,7 @@ class SynoDSMInfoSensor(SynoDSMSensor):
         if self.entity_description.key == "uptime":
             # reboot happened or entity creation
             if self._previous_uptime is None or self._previous_uptime > attr:
-                self._last_boot = utcnow() - timedelta(seconds=attr)
+                self._last_boot = dt_util.utcnow() - timedelta(seconds=attr)
 
             self._previous_uptime = attr
             return self._last_boot

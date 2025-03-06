@@ -49,6 +49,7 @@ def dsm_with_photos() -> MagicMock:
     dsm.network.update = AsyncMock(return_value=True)
     dsm.surveillance_station.update = AsyncMock(return_value=True)
     dsm.upgrade.update = AsyncMock(return_value=True)
+    dsm.hyperbackup = AsyncMock(return_value=True)
 
     dsm.photos.get_albums = AsyncMock(
         return_value=[SynoPhotosAlbum(1, "Album 1", 10, "")]
